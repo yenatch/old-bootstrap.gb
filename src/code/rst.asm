@@ -110,15 +110,16 @@ rst_FarCall:
 	push af
 	xor a
 	ld [rIE], a
-	pop af
 
-	add sp, -2
+	add sp, -4
 	pop af
 	rst Bankswitch
 
-	add sp, 4
+	add sp, 6
 	pop af
 	ld [rIE], a
 	pop af
+
+	add sp, -2
 
 	ret
