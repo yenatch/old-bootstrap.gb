@@ -71,7 +71,13 @@ rst_FarCall:
 	push af
 
 	; Insert hl between sp and the return address (.callback).
-	di
+	; This requires interrupts to be disabled.
+	; To function inside blocks where di/ei is already in use (i.e. interrupts), juggle rIE instead.
+	ld a, [rIE]
+	push af
+	xor a
+	ld [rIE], a
+	pop af
 
 	add sp, 2
 	push hl
@@ -80,7 +86,9 @@ rst_FarCall:
 	add sp, -4
 	push hl
 
-	ei
+	add sp, 2
+
+	ld [rIE], a
 
 	ld a, [hTemp + 4]
 	rst Bankswitch
@@ -95,17 +103,22 @@ rst_FarCall:
 
 .callback
 	; A little more stack trickery.
-	di
-
 	add sp, 2
 	push af
 
-	add sp, -4
+	ld a, [rIE]
+	push af
+	xor a
+	ld [rIE], a
+	pop af
+
+	add sp, -2
 	pop af
 	rst Bankswitch
 
 	add sp, 4
 	pop af
-	ei
+	ld [rIE], a
+	pop af
 
 	ret
