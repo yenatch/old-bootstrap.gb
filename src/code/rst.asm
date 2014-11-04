@@ -44,29 +44,46 @@ BankswitchHome:
 section "FarCall", rom0
 
 rst_FarCall:
-	push af
 	ld [hTemp], a
 	ld a, l
 	ld [hTemp + 1], a
 	ld a, h
 	ld [hTemp + 2], a
-	pop af
-
-	; Grab the return address.
-	pop hl
-	ld a, $c3 ; jp
-	ld [hCodeTemp + 0], a
-	ld a, [hli]
-	ld [hCodeTemp + 1], a
-	ld a, [hli]
-	ld [hCodeTemp + 2], a
-	ld a, [hli]
-	rst Bankswitch
-	; Put it back, skipping past the arguments.
-	push hl
 
 	ld a, [hRomBank]
+	ld [hTemp + 3], a
+
+	pop hl ; Grab the return address.
+	inc hl
+	inc hl
+	inc hl
+	push hl ; Put it back, skipping past the arguments.
+
+	; Read the arguments.
+	dec hl
+	ld a, [hld]
+	ld [hTemp + 4], a
+	ld a, [hld]
+	ld l, [hl]
+	ld h, a
+
+	ld a, [hTemp + 3]
 	push af
+
+	; Insert hl between sp and the return address (.callback).
+	di
+
+	add sp, 2
+	push hl
+
+	ld hl, .callback
+	add sp, -4
+	push hl
+
+	ei
+
+	ld a, [hTemp + 4]
+	rst Bankswitch
 
 	ld hl, hTemp + 2
 	ld a, [hld]
@@ -74,24 +91,21 @@ rst_FarCall:
 	ld h, a
 	ld a, [hTemp]
 
-	call hCodeTemp
+	ret ; pop pc
 
+.callback
+	; A little more stack trickery.
+	di
+
+	add sp, 2
 	push af
-	ld a, b
-	ld [hTemp], a
-	ld a, c
-	ld [hTemp + 1], a
+
+	add sp, -4
 	pop af
-
-	pop bc
-
-	push af
-	ld a, b
 	rst Bankswitch
-	ld a, [hTemp]
-	ld b, a
-	ld a, [hTemp + 1]
-	ld c, a
+
+	add sp, 4
 	pop af
+	ei
 
 	ret
