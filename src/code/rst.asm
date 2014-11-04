@@ -91,7 +91,8 @@ rst_FarCall:
 	ld [rIE], a
 
 	ld a, [hTemp + 4]
-	rst Bankswitch
+	ld [hRomBank], a
+	ld [MBC3RomBank], a
 
 	ld hl, hTemp + 2
 	ld a, [hld]
@@ -113,7 +114,8 @@ rst_FarCall:
 
 	add sp, -4
 	pop af
-	rst Bankswitch
+	ld [hRomBank], a
+	ld [MBC3RomBank], a
 
 	add sp, 6
 	pop af
