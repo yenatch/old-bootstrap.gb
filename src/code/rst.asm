@@ -1,127 +1,65 @@
 ; rst vectors are single-byte calls.
 
-; Here, they're used as pseudoinstructions for bank management.
-; This is not the only way the rst instructions can be used.
+; Here, farcall is used as a pseudoinstruction.
+; This is not the only way rst vectors can or should be used.
 
 
 section "rst Bankswitch", rom0 [Bankswitch]
-	jp rst_Bankswitch
+	ld [hRomBank], a
+	ld [MBC3RomBank], a
+	ret
 
 section "rst FarCall", rom0 [FarCall]
-	jp rst_FarCall
+	jp FarCall_
 
 
-section "Bankswitch", rom0
 
-rst_Bankswitch:
-	ld [hTemp], a
-	ld a, l
-	ld [hTemp + 1], a
-	ld a, h
-	ld [hTemp + 2], a
+section "farcall", rom0
+
+FarCall_:
+	ld  [wFarCallHold + 0], a
+	put [wFarCallHold + 1], h
+	put [wFarCallHold + 2], l
 
 	pop hl
-	ld a, [hli]
+	put [wFarCallBank],        [hli]
+	put [wFarCallTarget],      $c8 ; <jp>
+	put [wFarCallAddress + 0], [hli]
+	put [wFarCallAddress + 1], [hli]
 	push hl
 
-	ld [hRomBank], a
-	ld [MBC3RomBank], a
-
-	ld hl, hTemp + 2
-	ld a, [hld]
-	ld l, [hl]
-	ld h, a
-	ld a, [hTemp]
-	ret
-
-
-BankswitchHome:
-	ld [hRomBank], a
-	ld [MBC3RomBank], a
-	ret
-
-
-section "FarCall", rom0
-
-rst_FarCall:
-	ld [hTemp], a
-	ld a, l
-	ld [hTemp + 1], a
-	ld a, h
-	ld [hTemp + 2], a
+	ld hl, wFarCallHold + 1
+	ld a, [hli]
+	ld h, [hl]
+	ld l, a
 
 	ld a, [hRomBank]
-	ld [hTemp + 3], a
-
-	pop hl ; Grab the return address.
-	inc hl
-	inc hl
-	inc hl
-	push hl ; Put it back, skipping past the arguments.
-
-	; Read the arguments.
-	dec hl
-	ld a, [hld]
-	ld [hTemp + 4], a
-	ld a, [hld]
-	ld l, [hl]
-	ld h, a
-
-	ld a, [hTemp + 3]
 	push af
+	ld a, [wFarCallBank]
+	rst Bankswitch
 
-	; Insert hl between sp and the return address (.callback).
-	; This requires interrupts to be disabled.
-	; To function inside blocks where di/ei is already in use (i.e. interrupts), juggle rIE instead.
-	ld a, [rIE]
+	ld a, [wFarCallHold + 0]
+
+	call wFarCallTarget
+
 	push af
-	xor a
-	ld [rIE], a
-	pop af
 
 	add sp, 2
-	push hl
-
-	ld hl, .callback
+	pop af ; hRomBank
 	add sp, -4
-	push hl
+	rst Bankswitch
 
-	add sp, 2
-
-	ld [rIE], a
-
-	ld a, [hTemp + 4]
-	ld [hRomBank], a
-	ld [MBC3RomBank], a
-
-	ld hl, hTemp + 2
-	ld a, [hld]
-	ld l, [hl]
-	ld h, a
-	ld a, [hTemp]
-
-	ret ; pop pc
-
-.callback
-	; A little more stack trickery.
-	add sp, 2
-	push af
-
-	ld a, [rIE]
-	push af
-	xor a
-	ld [rIE], a
-
-	add sp, -4
 	pop af
-	ld [hRomBank], a
-	ld [MBC3RomBank], a
-
-	add sp, 6
-	pop af
-	ld [rIE], a
-	pop af
-
-	add sp, -2
-
 	ret
+
+
+pushs
+section "farcall wram", wramx
+
+wFarCallHold:    ds 3
+wFarCallBank:    db
+wFarCallTarget:  db ; jp
+wFarCallAddress: dw
+
+pops
+

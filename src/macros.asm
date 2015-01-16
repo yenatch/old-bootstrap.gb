@@ -1,3 +1,8 @@
+put: macro
+	ld a, \2
+	ld \1, a
+endm
+
 farcall: macro
 	rst FarCall
 	db  bank(\1)
